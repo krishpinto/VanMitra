@@ -1,103 +1,319 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  FileText,
+  MapPin,
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  Calendar,
+  Filter,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react"
+import { PDFUploadSection } from "@/components/pdf-upload-section"
+import { IndiaMap } from "@/components/india-map"
+import { StatsCards } from "@/components/stats-cards"
+import { ChartsSection } from "@/components/simple-charts"
+import { useData } from "@/lib/data-context"
+
+export default function FRADashboard() {
+  const { filters, updateFilters, refreshData, loading, error, filteredData } = useData()
+  const [lastUpdated, setLastUpdated] = useState<string>("")
+
+  useEffect(() => {
+    setLastUpdated(new Date().toLocaleString())
+  }, [filters])
+
+  const handleRefresh = async () => {
+    await refreshData()
+    setLastUpdated(new Date().toLocaleString())
+  }
+
+  const handleStateChange = (state: string) => {
+    updateFilters({ state })
+  }
+
+  const handleYearChange = (year: string) => {
+    updateFilters({ year })
+  }
+
+  const handleMonthChange = (month: string) => {
+    updateFilters({ month })
+  }
+
+  const stateOptions = [
+    { value: "all", label: "All States" },
+    { value: "chhattisgarh", label: "Chhattisgarh" },
+    { value: "odisha", label: "Odisha" },
+    { value: "telangana", label: "Telangana" },
+    { value: "madhya-pradesh", label: "Madhya Pradesh" },
+    { value: "jharkhand", label: "Jharkhand" },
+    { value: "andhra-pradesh", label: "Andhra Pradesh" },
+    { value: "karnataka", label: "Karnataka" },
+    { value: "maharashtra", label: "Maharashtra" },
+    { value: "west-bengal", label: "West Bengal" },
+    { value: "rajasthan", label: "Rajasthan" },
+  ]
+
+  const yearOptions = [
+    { value: "all", label: "All Years" },
+    { value: "2025", label: "2025" },
+    { value: "2024", label: "2024" },
+    { value: "2023", label: "2023" },
+    { value: "2022", label: "2022" },
+  ]
+
+  const monthOptions = [
+    { value: "all", label: "All Months" },
+    { value: "january", label: "January" },
+    { value: "february", label: "February" },
+    { value: "march", label: "March" },
+    { value: "april", label: "April" },
+    { value: "may", label: "May" },
+    { value: "june", label: "June" },
+    { value: "july", label: "July" },
+    { value: "august", label: "August" },
+    { value: "september", label: "September" },
+    { value: "october", label: "October" },
+    { value: "november", label: "November" },
+    { value: "december", label: "December" },
+  ]
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+                  <FileText className="w-7 h-7 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">FRA Monitoring System</h1>
+                  <p className="text-sm text-muted-foreground">Ministry of Tribal Affairs, Government of India</p>
+                </div>
+              </div>
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div className="flex items-center space-x-4">
+              {/* Filters */}
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <Select value={filters.state} onValueChange={handleStateChange}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Select State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stateOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.year} onValueChange={handleYearChange}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filters.month} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+
+              <div className="text-right">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4" />
+                  <span>Data as on:</span>
+                </div>
+                <div className="text-sm font-medium text-warning">01.06.2025</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </header>
+
+      <div className="container mx-auto px-6 py-6 space-y-8">
+        {/* Error Display */}
+        {error && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 text-destructive">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">{error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data Summary */}
+        {filteredData.length > 0 && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium text-foreground">{filteredData.length}</span> records
+                  </div>
+                  {filters.state !== "all" && (
+                    <Badge variant="outline" className="text-primary border-primary">
+                      {stateOptions.find((s) => s.value === filters.state)?.label}
+                    </Badge>
+                  )}
+                  {filters.year !== "all" && <Badge variant="outline">{filters.year}</Badge>}
+                  {filters.month !== "all" && (
+                    <Badge variant="outline">{monthOptions.find((m) => m.value === filters.month)?.label}</Badge>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">Last updated: {lastUpdated}</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* PDF Upload Section */}
+        <PDFUploadSection />
+
+        {/* Stats Overview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Overview Statistics</h2>
+            {loading && <Badge variant="secondary">Loading...</Badge>}
+          </div>
+          <StatsCards selectedState={filters.state} />
+        </div>
+
+        {/* Main Dashboard Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+          {/* Interactive India Map */}
+          <div className="xl:col-span-1">
+            <Card className="h-full">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center space-x-2">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <span>FRA Activity Map</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <IndiaMap selectedState={filters.state} onStateSelect={handleStateChange} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts and Analytics */}
+          <div className="xl:col-span-3">
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-foreground">Data Analytics</h2>
+              <ChartsSection selectedState={filters.state} />
+            </div>
+          </div>
+        </div>
+
+        {/* Key Performance Indicators */}
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold text-foreground">Key Performance Indicators</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Claims Disposal Rate</p>
+                    <p className="text-2xl font-bold text-success">78.5%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Target: 80%</p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-success" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pending Claims</p>
+                    <p className="text-2xl font-bold text-warning">749K</p>
+                    <p className="text-xs text-muted-foreground mt-1">14.6% of total</p>
+                  </div>
+                  <BarChart3 className="w-8 h-8 text-warning" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Active States</p>
+                    <p className="text-2xl font-bold text-primary">28</p>
+                    <p className="text-xs text-muted-foreground mt-1">All participating</p>
+                  </div>
+                  <MapPin className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Processing Time</p>
+                    <p className="text-2xl font-bold text-chart-1">45 days</p>
+                    <p className="text-xs text-muted-foreground mt-1">Average</p>
+                  </div>
+                  <PieChart className="w-8 h-8 text-chart-1" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="border-t border-border pt-6 mt-12">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div>
+              <p>© 2025 Ministry of Tribal Affairs, Government of India</p>
+              <p>Forest Rights Act Monitoring System</p>
+            </div>
+            <div className="text-right">
+              <p>Last updated: {lastUpdated}</p>
+              <p>
+                System Status: <span className="text-success">Online</span>
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
-  );
+  )
 }
