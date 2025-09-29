@@ -5,75 +5,115 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart3, PieChartIcon, TrendingUp, Activity } from "lucide-react"
+import { useData, getStateData, getMonthlyTrends } from "@/lib/data-context"
 
 interface ChartsSectionProps {
   selectedState: string
 }
 
 export function ChartsSection({ selectedState }: ChartsSectionProps) {
+  const { data } = useData()
   const [chartData, setChartData] = useState<any>({})
 
-  // Enhanced mock data with more realistic numbers
-  const allStatesData = {
-    ifrData: [
-      { state: "Chhattisgarh", received: 890, distributed: 481, pending: 409 },
-      { state: "Odisha", received: 701, distributed: 462, pending: 239 },
-      { state: "Telangana", received: 652, distributed: 231, pending: 421 },
-      { state: "M.P.", received: 420, distributed: 280, pending: 140 },
-      { state: "Jharkhand", received: 380, distributed: 190, pending: 190 },
-    ],
-    cfrData: [
-      { state: "Chhattisgarh", received: 57, distributed: 53, pending: 4 },
-      { state: "M.P.", received: 42, distributed: 28, pending: 14 },
-      { state: "Odisha", received: 35, distributed: 9, pending: 26 },
-      { state: "Telangana", received: 28, distributed: 15, pending: 13 },
-      { state: "Jharkhand", received: 22, distributed: 12, pending: 10 },
-    ],
-    claimsStatusData: [
-      { name: "Titles Distributed", value: 2511375, color: "hsl(var(--success))", percentage: 49.0 },
-      { name: "Rejected Claims", value: 1862056, color: "hsl(var(--destructive))", percentage: 36.3 },
-      { name: "Pending Claims", value: 749673, color: "hsl(var(--warning))", percentage: 14.7 },
-    ],
-    forestLandData: [
-      { state: "Chhattisgarh", ifr: 9.5, cfr: 91.03 },
-      { state: "M.P.", ifr: 9.04, cfr: 14.64 },
-      { state: "Odisha", ifr: 6.75, cfr: 7.43 },
-      { state: "Telangana", ifr: 4.2, cfr: 5.8 },
-      { state: "Jharkhand", ifr: 3.15, cfr: 4.25 },
-    ],
-    monthlyTrends: [
-      { month: "Jan", claims: 45000, titles: 28000 },
-      { month: "Feb", claims: 52000, titles: 31000 },
-      { month: "Mar", claims: 48000, titles: 35000 },
-      { month: "Apr", claims: 55000, titles: 38000 },
-      { month: "May", claims: 61000, titles: 42000 },
-      { month: "Jun", claims: 58000, titles: 45000 },
-    ],
-  }
-
   useEffect(() => {
-    // Filter data based on selected state
-    if (selectedState === "all") {
-      setChartData(allStatesData)
-    } else {
-      // Filter for specific state
-      const filteredData = {
-        ...allStatesData,
-        ifrData: allStatesData.ifrData.filter(
-          (item) => item.state.toLowerCase().replace(/\s+/g, "-") === selectedState,
-        ),
-        cfrData: allStatesData.cfrData.filter(
-          (item) => item.state.toLowerCase().replace(/\s+/g, "-") === selectedState,
-        ),
-        forestLandData: allStatesData.forestLandData.filter(
-          (item) => item.state.toLowerCase().replace(/\s+/g, "-") === selectedState,
-        ),
-      }
-      setChartData(filteredData)
+    if (data.length === 0) {
+      setChartData({})
+      return
     }
-  }, [selectedState])
+
+    const relevantData = selectedState === "all" ? data : getStateData(data, selectedState)
+
+    // Group data by state for IFR/CFR charts
+    const stateGroups = relevantData.reduce((acc: any, record) => {
+      if (!acc[record.state]) {
+        acc[record.state] = {
+          state: record.state,
+          totalReceived: 0,
+          totalDistributed: 0,
+          totalPending: 0,
+          ifrLand: 0,
+          cfrLand: 0,
+        }
+      }
+      acc[record.state].totalReceived += record.totalClaimsReceived
+      acc[record.state].totalDistributed += record.totalTitlesDistributed
+      acc[record.state].totalPending += record.totalClaimsReceived - record.totalClaimsDisposedOff
+      acc[record.state].ifrLand += record.areaHaIFRTitlesDistributed
+      acc[record.state].cfrLand += record.areaHaCFRTitlesDistributed
+      return acc
+    }, {})
+
+    const stateData = Object.values(stateGroups).map((state: any) => ({
+      state: state.state.length > 10 ? state.state.substring(0, 8) + "..." : state.state,
+      received: Math.round(state.totalReceived / 1000), // Convert to thousands
+      distributed: Math.round(state.totalDistributed / 1000),
+      pending: Math.round(state.totalPending / 1000),
+      ifr: (state.ifrLand / 100000).toFixed(1), // Convert to lakh acres
+      cfr: (state.cfrLand / 100000).toFixed(1),
+    }))
+
+    // Calculate overall claims status
+    const totalClaims = relevantData.reduce((sum, record) => sum + record.totalClaimsReceived, 0)
+    const totalDistributed = relevantData.reduce((sum, record) => sum + record.totalTitlesDistributed, 0)
+    const totalRejected = relevantData.reduce((sum, record) => sum + record.claimsRejected, 0)
+    const totalPending = totalClaims - totalDistributed - totalRejected
+
+    const claimsStatusData = [
+      {
+        name: "Titles Distributed",
+        value: totalDistributed,
+        color: "hsl(var(--success))",
+        percentage: totalClaims > 0 ? ((totalDistributed / totalClaims) * 100).toFixed(1) : "0",
+      },
+      {
+        name: "Rejected Claims",
+        value: totalRejected,
+        color: "hsl(var(--destructive))",
+        percentage: totalClaims > 0 ? ((totalRejected / totalClaims) * 100).toFixed(1) : "0",
+      },
+      {
+        name: "Pending Claims",
+        value: totalPending,
+        color: "hsl(var(--warning))",
+        percentage: totalClaims > 0 ? ((totalPending / totalClaims) * 100).toFixed(1) : "0",
+      },
+    ]
+
+    // Get monthly trends
+    const monthlyTrends = getMonthlyTrends(relevantData)
+      .slice(-6)
+      .map((item: any) => ({
+        month: item.month.substring(0, 3),
+        claims: Math.round(item.claims / 1000), // Convert to thousands
+        titles: Math.round(item.titles / 1000),
+      }))
+
+    setChartData({
+      ifrData: stateData,
+      cfrData: stateData,
+      forestLandData: stateData,
+      claimsStatusData,
+      monthlyTrends,
+    })
+  }, [data, selectedState])
 
   const SimpleBarChart = ({ data, title, icon }: { data: any[]; title: string; icon: React.ReactNode }) => {
+    if (!data || data.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-base">
+              {icon}
+              <span>{title}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">No data available</div>
+          </CardContent>
+        </Card>
+      )
+    }
+
     const maxValue = Math.max(...data.map((d) => Math.max(d.received || 0, d.distributed || 0, d.pending || 0)))
 
     return (
@@ -91,19 +131,28 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {data.map((item, index) => (
+            {data.slice(0, 5).map((item, index) => (
               <div key={index} className="space-y-2">
                 <div className="text-sm font-medium text-foreground">{item.state}</div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-chart-1">Received: {item.received}</span>
-                    <span className="text-success">Distributed: {item.distributed}</span>
-                    <span className="text-warning">Pending: {item.pending}</span>
+                    <span className="text-chart-1">Received: {item.received}K</span>
+                    <span className="text-success">Distributed: {item.distributed}K</span>
+                    <span className="text-warning">Pending: {item.pending}K</span>
                   </div>
                   <div className="flex space-x-1 h-4">
-                    <div className="bg-chart-1 rounded-l" style={{ width: `${(item.received / maxValue) * 100}%` }} />
-                    <div className="bg-success" style={{ width: `${(item.distributed / maxValue) * 100}%` }} />
-                    <div className="bg-warning rounded-r" style={{ width: `${(item.pending / maxValue) * 100}%` }} />
+                    <div
+                      className="bg-chart-1 rounded-l"
+                      style={{ width: `${maxValue > 0 ? (item.received / maxValue) * 100 : 0}%` }}
+                    />
+                    <div
+                      className="bg-success"
+                      style={{ width: `${maxValue > 0 ? (item.distributed / maxValue) * 100 : 0}%` }}
+                    />
+                    <div
+                      className="bg-warning rounded-r"
+                      style={{ width: `${maxValue > 0 ? (item.pending / maxValue) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
               </div>
@@ -115,6 +164,22 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
   }
 
   const SimplePieChart = ({ data }: { data: any[] }) => {
+    if (!data || data.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-base">
+              <PieChartIcon className="w-4 h-4 text-primary" />
+              <span>Overall Claims Status</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">No data available</div>
+          </CardContent>
+        </Card>
+      )
+    }
+
     return (
       <Card>
         <CardHeader>
@@ -144,6 +209,22 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
   }
 
   const SimpleAreaChart = ({ data }: { data: any[] }) => {
+    if (!data || data.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-base">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <span>Monthly Claims & Titles Trend</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">No data available</div>
+          </CardContent>
+        </Card>
+      )
+    }
+
     const maxValue = Math.max(...data.map((d) => Math.max(d.claims, d.titles)))
 
     return (
@@ -151,7 +232,7 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-base">
             <TrendingUp className="w-4 h-4 text-primary" />
-            <span>Monthly Claims & Titles Trend (2025)</span>
+            <span>Monthly Claims & Titles Trend</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -161,12 +242,18 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
                 <div className="text-sm font-medium text-foreground">{item.month}</div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-chart-1">Claims: {item.claims.toLocaleString()}</span>
-                    <span className="text-success">Titles: {item.titles.toLocaleString()}</span>
+                    <span className="text-chart-1">Claims: {item.claims}K</span>
+                    <span className="text-success">Titles: {item.titles}K</span>
                   </div>
                   <div className="flex space-x-1 h-3">
-                    <div className="bg-chart-1/30 rounded" style={{ width: `${(item.claims / maxValue) * 100}%` }} />
-                    <div className="bg-success/30 rounded" style={{ width: `${(item.titles / maxValue) * 100}%` }} />
+                    <div
+                      className="bg-chart-1/30 rounded"
+                      style={{ width: `${maxValue > 0 ? (item.claims / maxValue) * 100 : 0}%` }}
+                    />
+                    <div
+                      className="bg-success/30 rounded"
+                      style={{ width: `${maxValue > 0 ? (item.titles / maxValue) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
               </div>
@@ -178,7 +265,23 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
   }
 
   const SimpleHorizontalBarChart = ({ data }: { data: any[] }) => {
-    const maxValue = Math.max(...data.map((d) => d.ifr + d.cfr))
+    if (!data || data.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-base">
+              <Activity className="w-4 h-4 text-success" />
+              <span>Forest Land Recognised (Lakh Acres)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">No data available</div>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    const maxValue = Math.max(...data.map((d) => Number.parseFloat(d.ifr) + Number.parseFloat(d.cfr)))
 
     return (
       <Card>
@@ -190,7 +293,7 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {data.map((item, index) => (
+            {data.slice(0, 5).map((item, index) => (
               <div key={index} className="space-y-2">
                 <div className="text-sm font-medium text-foreground">{item.state}</div>
                 <div className="space-y-1">
@@ -199,8 +302,14 @@ export function ChartsSection({ selectedState }: ChartsSectionProps) {
                     <span className="text-chart-6">CFR: {item.cfr} Lakh Acres</span>
                   </div>
                   <div className="flex h-4 rounded overflow-hidden">
-                    <div className="bg-chart-5" style={{ width: `${(item.ifr / maxValue) * 100}%` }} />
-                    <div className="bg-chart-6" style={{ width: `${(item.cfr / maxValue) * 100}%` }} />
+                    <div
+                      className="bg-chart-5"
+                      style={{ width: `${maxValue > 0 ? (Number.parseFloat(item.ifr) / maxValue) * 100 : 0}%` }}
+                    />
+                    <div
+                      className="bg-chart-6"
+                      style={{ width: `${maxValue > 0 ? (Number.parseFloat(item.cfr) / maxValue) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
               </div>

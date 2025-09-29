@@ -1,27 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-
-interface FRAData {
-  id: string
-  date: string
-  year: number
-  month: string
-  state: string
-  individualClaimsReceived: number
-  communityClaimsReceived: number
-  totalClaimsReceived: number
-  individualTitlesDistributed: number
-  communityTitlesDistributed: number
-  totalTitlesDistributed: number
-  claimsRejected: number
-  totalClaimsDisposedOff: number
-  percentageClaimsDisposedOff: number
-  areaHaIFRTitlesDistributed: number
-  areaHaCFRTitlesDistributed: number
-  uploadDate: string
-  fileName: string
-}
+import { getFRARecords, type FRARecord } from "./firebase"
 
 interface DataFilters {
   state: string
@@ -30,137 +10,70 @@ interface DataFilters {
 }
 
 interface DataContextType {
-  data: FRAData[]
-  filteredData: FRAData[]
+  data: FRARecord[]
+  filteredData: FRARecord[]
   filters: DataFilters
   loading: boolean
   error: string | null
+  availableYears: string[]
+  availableMonths: string[]
+  availableStates: string[]
   updateFilters: (newFilters: Partial<DataFilters>) => void
   refreshData: () => Promise<void>
-  addData: (newData: FRAData) => void
+  addData: (newData: FRARecord) => void
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
-// Mock data for demonstration
-const mockData: FRAData[] = [
-  {
-    id: "1",
-    date: "01.06.2025",
-    year: 2025,
-    month: "June",
-    state: "Chhattisgarh",
-    individualClaimsReceived: 45000,
-    communityClaimsReceived: 845000,
-    totalClaimsReceived: 890000,
-    individualTitlesDistributed: 28000,
-    communityTitlesDistributed: 453000,
-    totalTitlesDistributed: 481000,
-    claimsRejected: 125000,
-    totalClaimsDisposedOff: 606000,
-    percentageClaimsDisposedOff: 68.1,
-    areaHaIFRTitlesDistributed: 3200000,
-    areaHaCFRTitlesDistributed: 9103000,
-    uploadDate: "2025-06-01T10:00:00Z",
-    fileName: "chhattisgarh_fra_june_2025.pdf",
-  },
-  {
-    id: "2",
-    date: "01.06.2025",
-    year: 2025,
-    month: "June",
-    state: "Odisha",
-    individualClaimsReceived: 38000,
-    communityClaimsReceived: 663000,
-    totalClaimsReceived: 701000,
-    individualTitlesDistributed: 25000,
-    communityTitlesDistributed: 437000,
-    totalTitlesDistributed: 462000,
-    claimsRejected: 89000,
-    totalClaimsDisposedOff: 551000,
-    percentageClaimsDisposedOff: 78.6,
-    areaHaIFRTitlesDistributed: 2800000,
-    areaHaCFRTitlesDistributed: 743000,
-    uploadDate: "2025-06-01T10:30:00Z",
-    fileName: "odisha_fra_june_2025.pdf",
-  },
-  {
-    id: "3",
-    date: "01.06.2025",
-    year: 2025,
-    month: "June",
-    state: "Telangana",
-    individualClaimsReceived: 32000,
-    communityClaimsReceived: 620000,
-    totalClaimsReceived: 652000,
-    individualTitlesDistributed: 15000,
-    communityTitlesDistributed: 216000,
-    totalTitlesDistributed: 231000,
-    claimsRejected: 156000,
-    totalClaimsDisposedOff: 387000,
-    percentageClaimsDisposedOff: 59.4,
-    areaHaIFRTitlesDistributed: 1800000,
-    areaHaCFRTitlesDistributed: 580000,
-    uploadDate: "2025-06-01T11:00:00Z",
-    fileName: "telangana_fra_june_2025.pdf",
-  },
-  {
-    id: "4",
-    date: "01.05.2025",
-    year: 2025,
-    month: "May",
-    state: "Madhya Pradesh",
-    individualClaimsReceived: 28000,
-    communityClaimsReceived: 392000,
-    totalClaimsReceived: 420000,
-    individualTitlesDistributed: 18000,
-    communityTitlesDistributed: 262000,
-    totalTitlesDistributed: 280000,
-    claimsRejected: 78000,
-    totalClaimsDisposedOff: 358000,
-    percentageClaimsDisposedOff: 85.2,
-    areaHaIFRTitlesDistributed: 2100000,
-    areaHaCFRTitlesDistributed: 1464000,
-    uploadDate: "2025-05-01T09:00:00Z",
-    fileName: "mp_fra_may_2025.pdf",
-  },
-  {
-    id: "5",
-    date: "01.05.2025",
-    year: 2025,
-    month: "May",
-    state: "Jharkhand",
-    individualClaimsReceived: 22000,
-    communityClaimsReceived: 358000,
-    totalClaimsReceived: 380000,
-    individualTitlesDistributed: 12000,
-    communityTitlesDistributed: 178000,
-    totalTitlesDistributed: 190000,
-    claimsRejected: 95000,
-    totalClaimsDisposedOff: 285000,
-    percentageClaimsDisposedOff: 75.0,
-    areaHaIFRTitlesDistributed: 1500000,
-    areaHaCFRTitlesDistributed: 425000,
-    uploadDate: "2025-05-01T14:00:00Z",
-    fileName: "jharkhand_fra_may_2025.pdf",
-  },
-]
-
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<FRAData[]>([])
-  const [filteredData, setFilteredData] = useState<FRAData[]>([])
+  const [data, setData] = useState<FRARecord[]>([])
+  const [filteredData, setFilteredData] = useState<FRARecord[]>([])
   const [filters, setFilters] = useState<DataFilters>({
     state: "all",
-    year: "2025",
+    year: "all",
     month: "all",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableYears, setAvailableYears] = useState<string[]>([])
+  const [availableMonths, setAvailableMonths] = useState<string[]>([])
+  const [availableStates, setAvailableStates] = useState<string[]>([])
 
-  // Initialize with mock data
   useEffect(() => {
-    setData(mockData)
+    loadData()
   }, [])
+
+  const loadData = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log("[v0] Loading FRA records from Firebase...")
+      const records = await getFRARecords()
+      console.log("[v0] Loaded records:", records.length)
+      setData(records)
+
+      const years = [...new Set(records.map((r) => r.year.toString()))].sort(
+        (a, b) => Number.parseInt(b) - Number.parseInt(a),
+      )
+      const months = [...new Set(records.map((r) => r.month))].sort()
+      const states = [...new Set(records.map((r) => r.state))].sort()
+
+      setAvailableYears(years)
+      setAvailableMonths(months)
+      setAvailableStates(states)
+
+      console.log("[v0] Available years:", years)
+      console.log("[v0] Available months:", months)
+      console.log("[v0] Available states:", states)
+    } catch (err) {
+      console.error("[v0] Error loading data:", err)
+      setError("Failed to load data from database")
+      setData([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter data whenever filters or data change
   useEffect(() => {
@@ -179,6 +92,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       filtered = filtered.filter((item) => item.month.toLowerCase() === filters.month.toLowerCase())
     }
 
+    console.log("[v0] Filtered data:", filtered.length, "records")
     setFilteredData(filtered)
   }, [data, filters])
 
@@ -187,36 +101,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshData = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      // In a real app, this would fetch from Firebase/API
-      const response = await fetch(`/api/fra-data?state=${filters.state}&year=${filters.year}&month=${filters.month}`)
-
-      if (response.ok) {
-        const result = await response.json()
-        if (result.success) {
-          setData(result.data)
-        } else {
-          throw new Error("Failed to fetch data")
-        }
-      } else {
-        // Fallback to mock data if API fails
-        console.log("[v0] API not available, using mock data")
-        setData(mockData)
-      }
-    } catch (err) {
-      console.error("[v0] Error fetching data:", err)
-      setError("Failed to refresh data")
-      // Use mock data as fallback
-      setData(mockData)
-    } finally {
-      setLoading(false)
-    }
+    await loadData()
   }
 
-  const addData = (newData: FRAData) => {
+  const addData = (newData: FRARecord) => {
     setData((prev) => [newData, ...prev])
   }
 
@@ -226,6 +114,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     filters,
     loading,
     error,
+    availableYears,
+    availableMonths,
+    availableStates,
     updateFilters,
     refreshData,
     addData,
@@ -242,8 +133,7 @@ export function useData() {
   return context
 }
 
-// Utility functions for data aggregation
-export function aggregateData(data: FRAData[]) {
+export function aggregateData(data: FRARecord[]) {
   if (data.length === 0) {
     return {
       totalClaimsReceived: 0,
@@ -278,13 +168,13 @@ export function aggregateData(data: FRAData[]) {
   }
 }
 
-export function getStateData(data: FRAData[], stateName: string) {
+export function getStateData(data: FRARecord[], stateName: string) {
   return data.filter(
     (record) => record.state.toLowerCase().replace(/\s+/g, "-") === stateName.toLowerCase().replace(/\s+/g, "-"),
   )
 }
 
-export function getMonthlyTrends(data: FRAData[]) {
+export function getMonthlyTrends(data: FRARecord[]) {
   const monthlyData = data.reduce(
     (acc, record) => {
       const key = `${record.year}-${record.month}`
